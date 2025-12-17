@@ -56,7 +56,7 @@ export function StaffDashboard(): React.JSX.Element {
 
       {!loading && !error && (
         <div className="space-y-6">
-          {/* --- Room Overview --- */}
+          
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white shadow rounded p-4">
               <h2 className="text-sm text-gray-500">
@@ -88,21 +88,33 @@ export function StaffDashboard(): React.JSX.Element {
             </div>
           </div>
 
-          {/* --- Upcoming Bookings --- */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white shadow rounded p-4">
-              <h2 className="text-lg font-semibold mb-2">
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
                 <LogIn className="w-5 h-5 text-green-600" />
-                 Check-in sắp tới
-                </h2>
-              <ul className="space-y-1">
-                {upcomingCheckIns.map((b) => (
-                  <li key={b.maDatPhong} className="text-sm">
-                    {b.tenKhachHang} – Phòng {b.tenPhong} ({b.ngayNhanPhong})
-                  </li>
-                ))}
-                {upcomingCheckIns.length === 0 && <li className="text-gray-500">Không có</li>}
-              </ul>
+                Check-in sắp tới
+              </h2>
+              {upcomingCheckIns.length === 0 ? (
+                <p className="text-gray-500 text-sm">Không có</p>
+              ) : (
+                <ul className="divide-y divide-gray-200">
+                  {upcomingCheckIns.map((b) => (
+                    <li
+                      key={b.maDatPhong}
+                      className="py-2 flex items-center justify-between text-sm"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-800">{b.tenKhachHang}</p>
+                        <p className="text-gray-500">Phòng {b.tenPhong}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-gray-700">{formatDate(b.ngayNhanPhong)}</p>
+                        <p className="text-xs text-gray-400">{formatTime(b.ngayNhanPhong)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="bg-white shadow rounded p-4">

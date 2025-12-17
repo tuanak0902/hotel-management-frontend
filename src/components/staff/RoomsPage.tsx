@@ -128,19 +128,7 @@ export function StaffRooms(): React.JSX.Element {
       setShowModal(false);
       setEditingRoom(null);
     } catch (e: any) {
-      const respData = e?.response?.data ?? null;
-      if (respData) {
-        try {
-          if (typeof respData === 'string') setFormError(respData);
-          else if (respData?.detail) setFormError(String(respData.detail));
-          else if (respData?.errors) setFormError(JSON.stringify(respData.errors));
-          else setFormError(JSON.stringify(respData));
-        } catch {
-          setFormError(e?.message ?? "Lưu thất bại do đã tồn tại phòng hoặc lỗi");
-        }
-      } else {
-        setFormError(e?.message ?? "Lưu thất bại do đã tồn tại phòng hoặc lỗi");
-      }
+        setFormError("Lưu phòng không thành công. Vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
@@ -152,13 +140,7 @@ export function StaffRooms(): React.JSX.Element {
       await roomService.remove(maPhong);
       setRooms((prev) => prev.filter((r) => r.maPhong !== maPhong));
     } catch (e: any) {
-      const resp = e?.response;
-      if (resp?.status === 404) {
-        const data = resp.data;
-        alert(data?.detail ?? data?.title ?? 'Không thể xóa phòng này.');
-      } else {
-        alert(e?.message ?? 'Xóa thất bại');
-      }
+      alert('Xóa thất bại! Đang có đơn đặt hoặc khách đang ở trong phòng này.');
     }
   };
 
@@ -279,9 +261,18 @@ export function StaffRooms(): React.JSX.Element {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">Mã loại phòng</label>
+                  {editingRoom ? (
+                  // Show read-only display when editing
+                  <div className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700">
+                    {editingRoom.tenLoaiPhong}
+                  </div>
+                ) : (
+                  // Show combobox when not editing
                   <select
                     value={form.maLoaiPhong}
-                    onChange={(e) => setForm((f) => ({ ...f, maLoaiPhong: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, maLoaiPhong: e.target.value }))
+                    }
                     className="w-full px-3 py-2 border rounded"
                   >
                     <option value="">-- Chọn loại phòng --</option>
@@ -291,6 +282,7 @@ export function StaffRooms(): React.JSX.Element {
                       </option>
                     ))}
                   </select>
+                )}
                   <div className="text-xs text-gray-500 mt-1">Nếu không thấy loại phòng, hãy tạo trước ở phần Loại phòng.</div>
                 </div>
 

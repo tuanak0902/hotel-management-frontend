@@ -209,20 +209,7 @@ export function StaffServices() {
       }
       setShowAddModal(false);
     } catch (e: any) {
-      // Try to surface useful server information
-      const msg = e?.message ?? String(e);
-      // If axios response body is available, prefer that (it may contain inner exception details)
-      const respData = (e && e.response && e.response.data) ? e.response.data : null;
-      if (respData) {
-        try {
-          if (typeof respData === 'string') setFormError(respData);
-          else setFormError(JSON.stringify(respData));
-        } catch {
-          setFormError(msg);
-        }
-      } else {
-        setFormError(msg);
-      }
+      setFormError('Không thể lưu dịch vụ! Đã có tên dịch vụ này hoặc lỗi khác.');
     } finally {
       setSubmitting(false);
     }

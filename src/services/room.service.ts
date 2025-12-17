@@ -1,4 +1,3 @@
-// src/services/room.service.ts
 import axios, { AxiosInstance } from 'axios';
 
 const BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? 'http://localhost:5054/api/phongs';

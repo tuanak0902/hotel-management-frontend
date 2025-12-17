@@ -288,19 +288,7 @@ export function StaffCustomers(): React.JSX.Element {
       setShowModal(false);
       setEditingCustomer(null);
     } catch (e: any) {
-      const respData = e?.response?.data ?? null;
-      if (respData) {
-        try {
-          if (typeof respData === 'string') setFormError(respData);
-          else if (respData?.detail) setFormError(String(respData.detail));
-          else if (respData?.errors) setFormError(JSON.stringify(respData.errors));
-          else setFormError(JSON.stringify(respData));
-        } catch {
-          setFormError(e?.message ?? String(e));
-        }
-      } else {
-        setFormError(e?.message ?? String(e));
-      }
+        setFormError('Lưu thất bại!');
     } finally {
       setSubmitting(false);
     }

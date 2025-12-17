@@ -95,18 +95,7 @@ export function StaffRoomTypes() {
     setShowAddModal(false);
     setEditing(null);
   } catch (e: any) {
-    const msg = e?.message ?? String(e);
-    const respData = e?.response?.data ?? null;
-    if (respData) {
-      try {
-        if (typeof respData === 'string') setFormError(respData);
-        else setFormError(JSON.stringify(respData));
-      } catch {
-        setFormError(msg);
-      }
-    } else {
-      setFormError(msg);
-    }
+    alert("Không thể thêm loại phòng này!");
   } finally {
     setSubmitting(false);
   }

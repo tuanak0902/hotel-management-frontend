@@ -1,19 +1,17 @@
-// src/pages/BookingsPage.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import bookingService, {
   DatPhongListResponse,
   DatPhongResponse,
   CreateDatPhongRequest,
 } from '../../services/booking.service';
-import { FileText, RefreshCcw } from 'lucide-react';
+import { FileText, RefreshCcw, X } from 'lucide-react';
 import roomService, { PhongResponse } from '../../services/room.service';
 import roomTypeService, { LoaiPhongResponse } from '../../services/room-type.service';
-import invoiceService, { HoaDonDetailResponse, ChiTietHoaDonResponse } from '../../services/invoice.service';
+import invoiceService, { HoaDonDetailResponse, ChiTietHoaDonResponse, UpdateHoaDonRequest } from '../../services/invoice.service';
 import invoiceDetailService, { CreateChiTietHoaDonRequest } from '../../services/invoice-detail.service';
 import customerService, { KhachHangResponse } from '../../services/customer.service';
 import serviceService, {DichVuResponse} from '../../services/service.service';
 import { stripDiacritics, formatMoney, formatDate, formatTime } from '../../helpers/helpers';
-
 
 
 export function StaffBookings(): React.JSX.Element {
@@ -22,6 +20,8 @@ export function StaffBookings(): React.JSX.Element {
   const [roomTypes, setRoomTypes] = useState<LoaiPhongResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmPay, setShowConfirmPay] = useState(false);
+  const [confirmBookingId, setConfirmBookingId] = useState<number | null>(null);
 
   // Add booking modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -242,7 +242,22 @@ export function StaffBookings(): React.JSX.Element {
     });
     setShowAddModal(true);
   }
+  const handleUpdateStatus = async (maDatPhong: number) => {
+  try {
+    await bookingService.updateStatus(maDatPhong, {
+      trangThai: "Đang ở", // or "Đang ở", or whatever new status you want
+    });
 
+    // Update local state (if using bookings array)
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.maDatPhong === maDatPhong ? { ...b, trangThai: "Đang ở" } : b
+      )
+    );
+  } catch (err:any) {
+    alert(err?.message ?? String(err));
+  }
+};
   async function submitAddBooking() {
     if (!newBooking.maKhachHang || !newBooking.maPhong || !newBooking.ngayNhanPhong || !newBooking.ngayTraPhong) {
       alert('Vui lòng điền đầy đủ thông tin: mã khách hàng, phòng, ngày nhận và ngày trả.');
@@ -263,7 +278,7 @@ export function StaffBookings(): React.JSX.Element {
       await loadAll();
       alert('Tạo đặt phòng thành công.');
     } catch (err: any) {
-      alert('Lỗi khi tạo đặt phòng: ' + (err?.message ?? String(err)));
+      alert(err?.message ?? String(err));
     } finally {
       setLoading(false);
     }
@@ -428,17 +443,24 @@ export function StaffBookings(): React.JSX.Element {
             </td>
 
             <td className="px-4 py-4 align-top">
-              <span
-                className={`inline-block px-2 py-1 text-xs rounded ${
-                  b.trangThai === 'Đang ở'
-                    ? 'bg-green-100 text-green-800'
-                    : b.trangThai === 'Đã hủy'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}
-              >
+              <button
+                onClick={() => {
+                  if (b.trangThai !== 'Đang ở') {
+                    setConfirmBookingId(b.maDatPhong);
+                  }
+                }}
+                className={`inline-block px-2 py-1 text-xs rounded transition
+                  ${
+                    b.trangThai === 'Đang ở'
+                      ? 'bg-green-100 text-green-800'
+                      : b.trangThai === 'Đã hủy'
+                      ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                      : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                  }`}
+                >
                 {b.trangThai ?? '-'}
-              </span>
+              </button>
+
             </td>
 
             <td className="px-4 py-4 align-top">
@@ -469,6 +491,30 @@ export function StaffBookings(): React.JSX.Element {
   </table>
 </div>
 
+      {confirmBookingId && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white rounded shadow-lg p-6 w-full max-w-sm">
+          <p className="mb-4">Bạn có chắc muốn thay đổi trạng thái thành "Đang ở" này?</p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setConfirmBookingId(null)}
+              className="px-3 py-1 border rounded"
+            >
+              Hủy
+            </button>
+            <button
+              onClick = { () => {
+                handleUpdateStatus(confirmBookingId);
+                setConfirmBookingId(null);
+              }}
+              className="px-3 py-1 bg-blue-600 text-white rounded"
+            >
+              Xác nhận
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
       {/* Add Booking Modal */}
       {showAddModal && (
@@ -517,7 +563,7 @@ export function StaffBookings(): React.JSX.Element {
               <div>
                 <label className="block text-sm text-gray-700">Ngày nhận phòng</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={newBooking.ngayNhanPhong ?? ''}
                   onChange={(e) => setNewBooking({ ...newBooking, ngayNhanPhong: e.target.value })}
                   className="mt-1 block w-full border rounded px-3 py-2"
@@ -527,7 +573,7 @@ export function StaffBookings(): React.JSX.Element {
               <div>
                 <label className="block text-sm text-gray-700">Ngày trả phòng</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={newBooking.ngayTraPhong ?? ''}
                   onChange={(e) => setNewBooking({ ...newBooking, ngayTraPhong: e.target.value })}
                   className="mt-1 block w-full border rounded px-3 py-2"
@@ -586,9 +632,9 @@ export function StaffBookings(): React.JSX.Element {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowInvoiceModal(false)}
-                  className="px-3 py-1 border rounded"
+                  className="px-3 py-1 border rounded bg-gray-300 hover:bg-red-500 text-black hover:text-white"
                 >
-                  Đóng
+                  <X className="w-4 h-4"/>
                 </button>
               </div>
             </div>
@@ -611,8 +657,17 @@ export function StaffBookings(): React.JSX.Element {
                     <div className="font-medium">{formatDate(currentInvoice.ngayLap)} {formatTime(currentInvoice.ngayLap)}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-500">Trạng thái thanh toán</div>
-                    <div className="font-medium">{currentInvoice.trangThaiThanhToan ?? '-'}</div>
+                    <div
+                    className={`font-medium px-3 py-1 rounded inline-block ${
+                      currentInvoice.trangThaiThanhToan === "Đã thanh toán"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {currentInvoice.trangThaiThanhToan === "Đã thanh toán"
+                      ? "Đã thanh toán"
+                      : currentInvoice.trangThaiThanhToan ?? "-"}
+                  </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Khách hàng</div>
@@ -670,92 +725,139 @@ export function StaffBookings(): React.JSX.Element {
                 </div>
 
                 {/* Add invoice detail */}
-                <div className="mt-6">
-                  {!addingDetail ? (
-                    <button
-                      onClick={() => setAddingDetail(true)}
-                      className="px-3 py-2 bg-green-600 text-white rounded"
-                    >
-                      + Thêm chi tiết
-                    </button>
-                  ) : (
-                    <div className="mt-3 bg-gray-50 p-4 rounded border">
-                      <div className="grid grid-cols-4 gap-3">
-                        <div>
-                          <label className="text-xs text-gray-600">Dịch vụ</label>
-                          <select
-                            value={newDetail.maDichVu ?? ''}
-                            onChange={(e) => {
-                              const selectedId = Number(e.target.value);
-                              const selectedService = services.find((s) => s.maDichVu === selectedId);
-                              setNewDetail({
-                                ...newDetail,
-                                maDichVu: selectedId,
-                                donGia: selectedService ? selectedService.donGia : 0, // auto‑set Đơn giá
-                              });
-                            }}
-                            className="mt-1 block w-full border rounded px-2 py-1"
-                          >
-                            <option value="">-- Chọn dịch vụ --</option>
-                            {services.map((s) => (
-                              <option key={s.maDichVu} value={s.maDichVu}>
-                                {s.tenDichVu ?? `Dịch vụ ${s.maDichVu}`} 
-                              </option>
-                            ))}
-                          </select>
+                <div className="mt-6 flex flex-wrap gap-3 justify-end">
+                  <div className="mt-6">
+                    {!addingDetail ? (
+                      <button
+                        disabled={currentInvoice.trangThaiThanhToan === "Đã thanh toán"}
+                        onClick={() => setAddingDetail(true)}
+                        className={`px-3 py-2  text-white rounded
+                        ${currentInvoice.trangThaiThanhToan === "Đã thanh toán"
+                          ? "bg-gray-300 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-500"}`}>
+                        + Thêm chi tiết
+                      </button>
+                    ) : (
+                      <div className="mt-3 bg-gray-50 p-4 rounded border">
+                        <div className="grid grid-cols-4 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-600">Dịch vụ</label>
+                            <select
+                              value={newDetail.maDichVu ?? ''}
+                              onChange={(e) => {
+                                const selectedId = Number(e.target.value);
+                                const selectedService = services.find((s) => s.maDichVu === selectedId);
+                                setNewDetail({
+                                  ...newDetail,
+                                  maDichVu: selectedId,
+                                  donGia: selectedService ? selectedService.donGia : 0, // auto‑set Đơn giá
+                                });
+                              }}
+                              className="mt-1 block w-full border rounded px-2 py-1"
+                            >
+                              <option value="">-- Chọn dịch vụ --</option>
+                              {services.map((s) => (
+                                <option key={s.maDichVu} value={s.maDichVu}>
+                                  {s.tenDichVu ?? `Dịch vụ ${s.maDichVu}`} 
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600">Số lượng</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={newDetail.soLuong ?? 1}
+                              onChange={(e) => setNewDetail({ ...newDetail, soLuong: Number(e.target.value) })}
+                              className="mt-1 block w-full border rounded px-2 py-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600">Đơn giá</label>
+                            <input
+                              readOnly
+                              type="number"
+                              min={0}
+                              value={formatMoney(newDetail.donGia ?? 0)}
+                              onChange={(e) => setNewDetail({ ...newDetail, donGia: Number(e.target.value) })}
+                              className="mt-1 block w-full border rounded px-2 py-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600">Mô tả</label>
+                            <input
+                              type="text"
+                              value={newDetail.moTa ?? ''}
+                              onChange={(e) => setNewDetail({ ...newDetail, moTa: e.target.value })}
+                              className="mt-1 block w-full border rounded px-2 py-1"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Số lượng</label>
-                          <input
-                            type="number"
-                            min={1}
-                            value={newDetail.soLuong ?? 1}
-                            onChange={(e) => setNewDetail({ ...newDetail, soLuong: Number(e.target.value) })}
-                            className="mt-1 block w-full border rounded px-2 py-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Đơn giá</label>
-                          <input
-                            readOnly
-                            type="number"
-                            min={0}
-                            value={formatMoney(newDetail.donGia ?? 0)}
-                            onChange={(e) => setNewDetail({ ...newDetail, donGia: Number(e.target.value) })}
-                            className="mt-1 block w-full border rounded px-2 py-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Mô tả</label>
-                          <input
-                            type="text"
-                            value={newDetail.moTa ?? ''}
-                            onChange={(e) => setNewDetail({ ...newDetail, moTa: e.target.value })}
-                            className="mt-1 block w-full border rounded px-2 py-1"
-                          />
-                        </div>
-                      </div>
 
-                      <div className="mt-3 flex justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setAddingDetail(false);
-                            setNewDetail({ maDichVu: undefined, soLuong: 1, donGia: 0, moTa: '' });
-                          }}
-                          className="px-3 py-1 border rounded"
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          onClick={submitAddInvoiceDetail}
-                          className="px-3 py-1 bg-blue-600 text-white rounded"
-                        >
-                          Lưu chi tiết
-                        </button>
+                        <div className="mt-3 flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setAddingDetail(false);
+                              setNewDetail({ maDichVu: undefined, soLuong: 1, donGia: 0, moTa: '' });
+                            }}
+                            className="px-3 py-1 border rounded"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            onClick={submitAddInvoiceDetail}
+                            className="px-3 py-1 bg-blue-600 text-white rounded"
+                          >
+                            Lưu chi tiết
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                <div className="mt-6">
+                {currentInvoice.trangThaiThanhToan !== "Đã thanh toán" && (
+                  <button
+                    onClick={() => setShowConfirmPay(true)}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded"
+                  >
+                    Thanh toán
+                  </button>
+                )}
                 </div>
+                </div>
+                {showConfirmPay && (
+                <div className="mt-4 bg-gray-50 p-4 rounded border">
+                  <p className="mb-3">Bạn có muốn thanh toán hóa đơn này?</p>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={async() => {
+                        try {
+                          await invoiceService.updateStatus(currentInvoice.maHoaDon, {
+                            trangThai: "Đã thanh toán",
+                          } as UpdateHoaDonRequest);
+                          setCurrentInvoice({
+                          ...currentInvoice,
+                          trangThaiThanhToan: "Đã thanh toán",
+                        });
+                          setShowConfirmPay(false);
+                        } catch (err) {
+                          console.error("Failed to update invoice", err);
+                        }
+                      }}
+                      className="px-3 py-1 bg-blue-600 text-white rounded"
+                    >
+                      Có
+                    </button>
+                    <button
+                      onClick={() => setShowConfirmPay(false)}
+                      className="px-3 py-1 border rounded"
+                    >
+                      Không
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
             ) : (
               <div className="mt-6 text-gray-600">Không có dữ liệu hóa đơn để hiển thị.</div>
